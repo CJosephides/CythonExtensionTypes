@@ -5,7 +5,8 @@ cparticle.pyx
 cdef class Particle:
     """Simple Particle type."""
 
-    cdef mass, position, velocity
+    cdef readonly mass
+    cdef public position, velocity
 
     def __init__(self, m, p, v):
         self.mass = m

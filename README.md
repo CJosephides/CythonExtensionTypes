@@ -47,3 +47,38 @@ When we access an instance's attribute, like `self.mass`, in a normal python cla
 Methods defined in `cdef class` extension types, on the other hand, have low-level access to C-struct fields, which allows them to bypass indirection lookups.
 
 When we want to be able to inspect these attributes, we can use the declaration statement `cdef readonly mass`. If we want to make an attribute both readable and writeable from python, we can use the statement `cdef public double position, velocity`.
+
+## C-level initialization and finalization
+
+When python calls `__init__`, the `self` argument is required to be a valid instance of that (extension) type. At the C-level, before `__init__` is called, the instance's struct must be allocated. Cython adds a special method, `__cinit__`, whose responsibility is to perform C-level allocation and initialization.
+
+It is fine to use `__init__` for our simple Particle extension, but we want to avoid a situation where `__init__` may be called multiple times. This can happen, for example, when we have alternative constructors or class children. So, Cython guarantees that `__cinit__` is called only once per instance, and that it is called before `__init__`, `__new__`, or alternative python constructors.
+
+Suppose we have an extension type that, as part of its initialization, needs to dynamically allocate some memory on the heap.
+
+```
+from libc.stdlib cimport malloc, free
+
+cdef class Matrix:
+
+    cdef:
+        unsigned int nrows, ncols
+        double *_matrix
+
+    def __cinit__(self, nr, nc):
+        self.nrows = nr
+        self.ncols = nc
+        self._matrix = <double*>malloc(nr * nc * sizeof(double))
+        if self._matrix == NULL:
+            raise MemoryError()
+```
+
+Now Cython guarantees that memory for a Matrix instance is allocated always and exactly once, preventing segmentation faults and memory leaks.
+
+To finalize, usually to free memory, we define the `__dealloc__` method:
+
+```
+def __dealloc__(self):
+    if self._matrix != NULL:
+        free(self._matrix)
+```

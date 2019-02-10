@@ -9,4 +9,4 @@ ext = Extension("cparticle",
                 ["cparticle.pyx"])
 
 setup(name="cparticle",
-      ext_modules=cythonize(ext))
+      ext_modules=cythonize(ext, annotate=True))

@@ -82,3 +82,39 @@ def __dealloc__(self):
     if self._matrix != NULL:
         free(self._matrix)
 ```
+
+## cdef and cpdef methods
+
+* We cannot use `cdef` and `cpdef` methods on non-`cdef` classes.
+* `cdef` methods have C calling semantics, just as `cdef` functions do. This means that all arguments are passed in as-is without any type mapping from python to C. Therefore, a `cdef` method is only accessible from other Cython code and cannot be called from Python.
+
+A `cpdef` method is particularly useful when we want to call it from both external Python code and from other Cython code. When called from Cython, no conversion between Python and C "objects" is needed. However, the argument and return types have to be automatically convertible to and from Python objects, respectively, which restrict the allowed types somewhat. Importantly, this means we cannot use pointer types.
+
+For example, we can declare the `get_momentum` method as:
+
+`cpdef double get_momentum(self)`
+
+### Adding type information
+
+Consider two versions of momentum adders:
+
+```
+def add_momentums(particles):
+    """Return the sum of particles' momentums."""
+    total_mom = 0.
+    for particle in particles:
+        total_mom += particle.get_momentum()
+    return total_mom
+
+def add_momentums_typed(list particles):
+    """Typed momentum summer."""
+    cdef:
+        double total_mom = 0.
+        Particle particle
+    for particle in particles:
+        total_mom += particle.get_momentum()
+    return total_mom
+```
+
+For 1,000 particles, the first takes 65us; the second takes 5.5us. In the latter case, no Python objects are involved. We can further squeeze some time out of the momentum adder by making `get_momentum` a `cdef`-only method, rather than `cpdef` method.
+
